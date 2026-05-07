@@ -38,9 +38,7 @@ jobs:
       - name: Set up Buf
         uses: bufbuild/buf-setup-action@v1
       - name: Buf lint
-        working-directory: proto
-        run: buf lint
+        run: buf lint proto
       - name: Buf breaking change check
         if: github.event_name == 'pull_request'
-        working-directory: proto
-        run: buf breaking --against '.git#branch=main'
+        run: buf breaking proto --against '.git#branch=main,subdir=proto'
