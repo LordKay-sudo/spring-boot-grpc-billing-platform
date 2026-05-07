@@ -1,0 +1,6 @@
+version: v2
+plugins:
+  - remote: buf.build/protocolbuffers/java
+    out: ../usage-ingestion-service/build/generated/source/buf/java
+  - remote: buf.build/grpc/java
+    out: ../usage-ingestion-service/build/generated/source/buf/grpc
