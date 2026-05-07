@@ -7,10 +7,10 @@ option java_package = "com.lordkay.billing.proto.v1";
 option java_outer_classname = "UsageIngestionProto";
 
 service UsageIngestionService {
-  rpc IngestUsage(IngestUsageRequest) returns (IngestUsageResponse);
+  rpc IngestUsage(UsageEventRequest) returns (UsageEventResponse);
 }
 
-message IngestUsageRequest {
+message UsageEventRequest {
   string tenant_id = 1;
   string meter_id = 2;
   string idempotency_key = 3;
@@ -18,7 +18,7 @@ message IngestUsageRequest {
   int64 occurred_at_epoch_ms = 5;
 }
 
-message IngestUsageResponse {
+message UsageEventResponse {
   string usage_event_id = 1;
   string status = 2;
   string message = 3;

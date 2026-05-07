@@ -3,9 +3,9 @@ package com.lordkay.billing.usageingestion.grpc;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lordkay.billing.proto.v1.CreateInvoiceResponse;
-import com.lordkay.billing.proto.v1.IngestUsageRequest;
-import com.lordkay.billing.proto.v1.IngestUsageResponse;
 import com.lordkay.billing.proto.v1.RateUsageResponse;
+import com.lordkay.billing.proto.v1.UsageEventRequest;
+import com.lordkay.billing.proto.v1.UsageEventResponse;
 import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,9 +32,9 @@ class UsageIngestionGrpcServiceTest {
 			.setStatus("DRAFT")
 			.build();
 		UsageIngestionGrpcService service = new UsageIngestionGrpcService(ratingGateway, invoicingGateway);
-		List<IngestUsageResponse> responses = new ArrayList<>();
+		List<UsageEventResponse> responses = new ArrayList<>();
 
-		service.ingestUsage(IngestUsageRequest.newBuilder()
+		service.ingestUsage(UsageEventRequest.newBuilder()
 			.setTenantId("tenant-1")
 			.setMeterId("api-calls")
 			.setIdempotencyKey("key-123")
@@ -42,7 +42,7 @@ class UsageIngestionGrpcServiceTest {
 			.setOccurredAtEpochMs(1715068800000L)
 			.build(), new StreamObserver<>() {
 				@Override
-				public void onNext(IngestUsageResponse value) {
+				public void onNext(UsageEventResponse value) {
 					responses.add(value);
 				}
 
