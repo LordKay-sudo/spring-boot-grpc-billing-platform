@@ -24,9 +24,6 @@ ext {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-	implementation 'io.grpc:grpc-netty-shaded'
-	implementation 'io.grpc:grpc-protobuf'
-	implementation 'io.grpc:grpc-stub'
 	implementation 'io.grpc:grpc-services'
 	implementation 'org.springframework.grpc:spring-grpc-server-spring-boot-starter'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
