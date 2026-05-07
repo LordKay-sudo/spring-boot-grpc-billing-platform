@@ -4,8 +4,11 @@ import com.lordkay.billing.proto.v1.CreateInvoiceRequest;
 import com.lordkay.billing.proto.v1.CreateInvoiceResponse;
 import com.lordkay.billing.proto.v1.InvoicingServiceGrpc;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import jakarta.annotation.PreDestroy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
@@ -20,9 +23,28 @@ public class GrpcInvoicingGateway implements InvoicingGateway {
 
 	public GrpcInvoicingGateway(
 		@Value("${billing.invoicing.host:localhost}") String host,
-		@Value("${billing.invoicing.port:9092}") int port
+		@Value("${billing.invoicing.port:9092}") int port,
+		@Value("${billing.invoicing.tls.enabled:false}") boolean tlsEnabled,
+		@Value("${billing.invoicing.tls.trust-cert:}") String trustCertPath
 	) {
-		this.channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+		NettyChannelBuilder channelBuilder = NettyChannelBuilder.forAddress(host, port);
+		if (tlsEnabled) {
+			channelBuilder.useTransportSecurity();
+			if (!trustCertPath.isBlank() && Files.exists(Path.of(trustCertPath))) {
+				try {
+					channelBuilder.sslContext(
+						GrpcSslContexts.forClient().trustManager(Path.of(trustCertPath).toFile()).build()
+					);
+				}
+				catch (Exception ex) {
+					throw new IllegalStateException("Unable to configure TLS trust cert for invoicing client", ex);
+				}
+			}
+		}
+		else {
+			channelBuilder.usePlaintext();
+		}
+		this.channel = channelBuilder.build();
 		this.invoicingStub = InvoicingServiceGrpc.newBlockingStub(this.channel);
 	}
 

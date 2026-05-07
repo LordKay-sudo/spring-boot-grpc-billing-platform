@@ -4,8 +4,11 @@ import com.lordkay.billing.proto.v1.RateUsageRequest;
 import com.lordkay.billing.proto.v1.RateUsageResponse;
 import com.lordkay.billing.proto.v1.RatingServiceGrpc;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import jakarta.annotation.PreDestroy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
@@ -20,9 +23,28 @@ public class GrpcRatingGateway implements RatingGateway {
 
 	public GrpcRatingGateway(
 		@Value("${billing.rating.host:localhost}") String host,
-		@Value("${billing.rating.port:9091}") int port
+		@Value("${billing.rating.port:9091}") int port,
+		@Value("${billing.rating.tls.enabled:false}") boolean tlsEnabled,
+		@Value("${billing.rating.tls.trust-cert:}") String trustCertPath
 	) {
-		this.channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+		NettyChannelBuilder channelBuilder = NettyChannelBuilder.forAddress(host, port);
+		if (tlsEnabled) {
+			channelBuilder.useTransportSecurity();
+			if (!trustCertPath.isBlank() && Files.exists(Path.of(trustCertPath))) {
+				try {
+					channelBuilder.sslContext(
+						GrpcSslContexts.forClient().trustManager(Path.of(trustCertPath).toFile()).build()
+					);
+				}
+				catch (Exception ex) {
+					throw new IllegalStateException("Unable to configure TLS trust cert for rating client", ex);
+				}
+			}
+		}
+		else {
+			channelBuilder.usePlaintext();
+		}
+		this.channel = channelBuilder.build();
 		this.ratingStub = RatingServiceGrpc.newBlockingStub(this.channel);
 	}
 

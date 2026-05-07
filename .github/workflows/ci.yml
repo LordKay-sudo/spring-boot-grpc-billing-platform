@@ -28,3 +28,19 @@ jobs:
           java-version: 21
       - name: Build and test
         run: ./gradlew clean test
+
+  protobuf-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Buf
+        uses: bufbuild/buf-setup-action@v1
+      - name: Buf lint
+        run: buf lint proto
+      - name: Buf breaking change check
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.base_ref }}:${{ github.base_ref }}"
+          buf breaking proto --against ".git#branch=${{ github.base_ref }},subdir=proto"

@@ -24,6 +24,8 @@ ext {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
 	implementation 'io.grpc:grpc-services'
 	implementation 'org.springframework.grpc:spring-grpc-server-spring-boot-starter'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
