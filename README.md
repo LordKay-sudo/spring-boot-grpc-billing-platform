@@ -14,6 +14,12 @@ Multi-tenant billing platform built with Spring Boot 4, gRPC, and Protobuf.
 - expanded protobuf contracts for rating and invoice creation
 - service-level unit tests for core RPC methods
 
+## Milestone 3 Scope
+- TLS-ready gRPC server and client configuration knobs
+- Prometheus + tracing dependencies and correlated log pattern
+- protobuf contract governance checks in CI with Buf
+- security and observability baseline documentation (`docs/security-observability.md`)
+
 ## Repository Layout
 - `proto/` shared protobuf contracts
 - `usage-ingestion-service/` first runnable service
