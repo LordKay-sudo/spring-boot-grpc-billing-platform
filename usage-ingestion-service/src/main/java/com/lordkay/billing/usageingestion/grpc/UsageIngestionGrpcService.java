@@ -1,9 +1,9 @@
 package com.lordkay.billing.usageingestion.grpc;
 
 import com.lordkay.billing.proto.v1.CreateInvoiceResponse;
+import com.lordkay.billing.proto.v1.IngestUsageRequest;
+import com.lordkay.billing.proto.v1.IngestUsageResponse;
 import com.lordkay.billing.proto.v1.RateUsageResponse;
-import com.lordkay.billing.proto.v1.UsageEventRequest;
-import com.lordkay.billing.proto.v1.UsageEventResponse;
 import com.lordkay.billing.proto.v1.UsageIngestionServiceGrpc;
 import io.grpc.stub.StreamObserver;
 import java.util.UUID;
@@ -21,7 +21,7 @@ public class UsageIngestionGrpcService extends UsageIngestionServiceGrpc.UsageIn
 	}
 
 	@Override
-	public void ingestUsage(UsageEventRequest request, StreamObserver<UsageEventResponse> responseObserver) {
+	public void ingestUsage(IngestUsageRequest request, StreamObserver<IngestUsageResponse> responseObserver) {
 		String usageEventId = UUID.randomUUID().toString();
 		RateUsageResponse ratedUsage = ratingGateway.rateUsage(
 			usageEventId,
@@ -36,7 +36,7 @@ public class UsageIngestionGrpcService extends UsageIngestionServiceGrpc.UsageIn
 			ratedUsage.getCurrencyCode()
 		);
 
-		UsageEventResponse response = UsageEventResponse.newBuilder()
+		IngestUsageResponse response = IngestUsageResponse.newBuilder()
 			.setUsageEventId(usageEventId)
 			.setStatus("ACCEPTED")
 			.setMessage("Usage event accepted for tenant " + request.getTenantId())
