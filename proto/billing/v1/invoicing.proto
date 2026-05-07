@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package billing.v1;
+
+option java_multiple_files = true;
+option java_package = "com.lordkay.billing.proto.v1";
+option java_outer_classname = "InvoicingProto";
+
+service InvoicingService {
+  rpc CreateInvoice(CreateInvoiceRequest) returns (CreateInvoiceResponse);
+}
+
+message CreateInvoiceRequest {
+  string tenant_id = 1;
+  string usage_event_id = 2;
+  int64 amount_minor = 3;
+  string currency_code = 4;
+}
+
+message CreateInvoiceResponse {
+  string invoice_id = 1;
+  string tenant_id = 2;
+  int64 total_minor = 3;
+  string currency_code = 4;
+  string status = 5;
+}

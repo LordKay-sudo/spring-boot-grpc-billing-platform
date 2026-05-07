@@ -7,11 +7,18 @@ on:
     branches: [main]
 
 jobs:
-  usage-ingestion-service:
+  services:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - usage-ingestion-service
+          - rating-service
+          - invoicing-service
     defaults:
       run:
-        working-directory: usage-ingestion-service
+        working-directory: ${{ matrix.service }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 21

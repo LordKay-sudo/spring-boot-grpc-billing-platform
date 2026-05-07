@@ -22,4 +22,6 @@ message UsageEventResponse {
   string usage_event_id = 1;
   string status = 2;
   string message = 3;
+  int64 rated_amount_minor = 4;
+  string invoice_id = 5;
 }

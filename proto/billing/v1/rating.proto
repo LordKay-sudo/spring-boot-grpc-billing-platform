@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package billing.v1;
+
+option java_multiple_files = true;
+option java_package = "com.lordkay.billing.proto.v1";
+option java_outer_classname = "RatingProto";
+
+service RatingService {
+  rpc RateUsage(RateUsageRequest) returns (RateUsageResponse);
+}
+
+message RateUsageRequest {
+  string usage_event_id = 1;
+  string tenant_id = 2;
+  string meter_id = 3;
+  int64 quantity = 4;
+}
+
+message RateUsageResponse {
+  string usage_event_id = 1;
+  string tenant_id = 2;
+  int64 quantity = 3;
+  int64 unit_price_minor = 4;
+  int64 total_amount_minor = 5;
+  string currency_code = 6;
+  string status = 7;
+}
