@@ -20,12 +20,14 @@ public class GrpcRatingGateway implements RatingGateway {
 
 	private final ManagedChannel channel;
 	private final RatingServiceGrpc.RatingServiceBlockingStub ratingStub;
+	private final long timeoutMs;
 
 	public GrpcRatingGateway(
 		@Value("${billing.rating.host:localhost}") String host,
 		@Value("${billing.rating.port:9091}") int port,
 		@Value("${billing.rating.tls.enabled:false}") boolean tlsEnabled,
-		@Value("${billing.rating.tls.trust-cert:}") String trustCertPath
+		@Value("${billing.rating.tls.trust-cert:}") String trustCertPath,
+		@Value("${billing.rating.timeout-ms:1200}") long timeoutMs
 	) {
 		NettyChannelBuilder channelBuilder = NettyChannelBuilder.forAddress(host, port);
 		if (tlsEnabled) {
@@ -46,11 +48,12 @@ public class GrpcRatingGateway implements RatingGateway {
 		}
 		this.channel = channelBuilder.build();
 		this.ratingStub = RatingServiceGrpc.newBlockingStub(this.channel);
+		this.timeoutMs = timeoutMs;
 	}
 
 	@Override
 	public RateUsageResponse rateUsage(String usageEventId, String tenantId, String meterId, long quantity) {
-		return ratingStub.rateUsage(RateUsageRequest.newBuilder()
+		return ratingStub.withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS).rateUsage(RateUsageRequest.newBuilder()
 			.setUsageEventId(usageEventId)
 			.setTenantId(tenantId)
 			.setMeterId(meterId)

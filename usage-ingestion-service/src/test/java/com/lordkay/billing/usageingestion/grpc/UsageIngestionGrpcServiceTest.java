@@ -31,7 +31,7 @@ class UsageIngestionGrpcServiceTest {
 			.setCurrencyCode(currencyCode)
 			.setStatus("DRAFT")
 			.build();
-		UsageIngestionGrpcService service = new UsageIngestionGrpcService(ratingGateway, invoicingGateway);
+		UsageIngestionGrpcService service = new UsageIngestionGrpcService(ratingGateway, invoicingGateway, false, false);
 		List<UsageEventResponse> responses = new ArrayList<>();
 
 		service.ingestUsage(UsageEventRequest.newBuilder()
@@ -62,5 +62,45 @@ class UsageIngestionGrpcServiceTest {
 		assertThat(responses.getFirst().getUsageEventId()).isNotBlank();
 		assertThat(responses.getFirst().getRatedAmountMinor()).isEqualTo(126);
 		assertThat(responses.getFirst().getInvoiceId()).isEqualTo("inv-123");
+	}
+
+	@Test
+	void ingestUsageFallsBackWhenDownstreamFails() {
+		RatingGateway ratingGateway = (usageEventId, tenantId, meterId, quantity) -> {
+			throw new RuntimeException("rating-down");
+		};
+		InvoicingGateway invoicingGateway = (tenantId, usageEventId, amountMinor, currencyCode) -> CreateInvoiceResponse.newBuilder()
+			.setInvoiceId("should-not-be-called")
+			.build();
+		UsageIngestionGrpcService service = new UsageIngestionGrpcService(ratingGateway, invoicingGateway, false, false);
+		List<UsageEventResponse> responses = new ArrayList<>();
+
+		service.ingestUsage(UsageEventRequest.newBuilder()
+			.setTenantId("tenant-1")
+			.setMeterId("api-calls")
+			.setIdempotencyKey("key-123")
+			.setQuantity(42)
+			.setOccurredAtEpochMs(1715068800000L)
+			.build(), new StreamObserver<>() {
+				@Override
+				public void onNext(UsageEventResponse value) {
+					responses.add(value);
+				}
+
+				@Override
+				public void onError(Throwable t) {
+					throw new AssertionError("No error expected", t);
+				}
+
+				@Override
+				public void onCompleted() {
+					// no-op
+				}
+			});
+
+		assertThat(responses).hasSize(1);
+		assertThat(responses.getFirst().getStatus()).isEqualTo("ACCEPTED_WITH_DEGRADATION");
+		assertThat(responses.getFirst().getRatedAmountMinor()).isZero();
+		assertThat(responses.getFirst().getInvoiceId()).isEmpty();
 	}
 }
