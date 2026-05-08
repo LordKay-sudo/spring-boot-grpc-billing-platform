@@ -20,6 +20,12 @@ Multi-tenant billing platform built with Spring Boot 4, gRPC, and Protobuf.
 - protobuf contract governance checks in CI with Buf
 - security and observability baseline documentation (`docs/security-observability.md`)
 
+## Milestone 4 Scope
+- resilience with gRPC deadlines and graceful degradation in ingestion flow
+- failure-focused tests for downstream dependency outages
+- grpcurl smoke scripts for all services under `scripts/smoke`
+- operational runbook and failure simulation guidance (`docs/runbook.md`)
+
 ## Repository Layout
 - `proto/` shared protobuf contracts
 - `usage-ingestion-service/` first runnable service
@@ -49,4 +55,11 @@ cd "usage-ingestion-service"
 ## Smoke test with grpcurl
 ```powershell
 grpcurl -plaintext -d "{\"tenantId\":\"tenant-1\",\"meterId\":\"api-calls\",\"idempotencyKey\":\"key-001\",\"quantity\":10,\"occurredAtEpochMs\":1715068800000}" localhost:9090 billing.v1.UsageIngestionService/IngestUsage
+```
+
+## Smoke scripts
+```powershell
+.\scripts\smoke\grpcurl-rating.ps1
+.\scripts\smoke\grpcurl-invoicing.ps1
+.\scripts\smoke\grpcurl-usage.ps1
 ```

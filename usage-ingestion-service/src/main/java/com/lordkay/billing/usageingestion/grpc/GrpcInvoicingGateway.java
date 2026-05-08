@@ -20,12 +20,14 @@ public class GrpcInvoicingGateway implements InvoicingGateway {
 
 	private final ManagedChannel channel;
 	private final InvoicingServiceGrpc.InvoicingServiceBlockingStub invoicingStub;
+	private final long timeoutMs;
 
 	public GrpcInvoicingGateway(
 		@Value("${billing.invoicing.host:localhost}") String host,
 		@Value("${billing.invoicing.port:9092}") int port,
 		@Value("${billing.invoicing.tls.enabled:false}") boolean tlsEnabled,
-		@Value("${billing.invoicing.tls.trust-cert:}") String trustCertPath
+		@Value("${billing.invoicing.tls.trust-cert:}") String trustCertPath,
+		@Value("${billing.invoicing.timeout-ms:1200}") long timeoutMs
 	) {
 		NettyChannelBuilder channelBuilder = NettyChannelBuilder.forAddress(host, port);
 		if (tlsEnabled) {
@@ -46,11 +48,12 @@ public class GrpcInvoicingGateway implements InvoicingGateway {
 		}
 		this.channel = channelBuilder.build();
 		this.invoicingStub = InvoicingServiceGrpc.newBlockingStub(this.channel);
+		this.timeoutMs = timeoutMs;
 	}
 
 	@Override
 	public CreateInvoiceResponse createInvoice(String tenantId, String usageEventId, long amountMinor, String currencyCode) {
-		return invoicingStub.createInvoice(CreateInvoiceRequest.newBuilder()
+		return invoicingStub.withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS).createInvoice(CreateInvoiceRequest.newBuilder()
 			.setTenantId(tenantId)
 			.setUsageEventId(usageEventId)
 			.setAmountMinor(amountMinor)
