@@ -52,12 +52,19 @@ public class GrpcInvoicingGateway implements InvoicingGateway {
 	}
 
 	@Override
-	public CreateInvoiceResponse createInvoice(String tenantId, String usageEventId, long amountMinor, String currencyCode) {
+	public CreateInvoiceResponse createInvoice(
+		String tenantId,
+		String usageEventId,
+		long amountMinor,
+		String currencyCode,
+		String billingPeriodKey
+	) {
 		return invoicingStub.withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS).createInvoice(CreateInvoiceRequest.newBuilder()
 			.setTenantId(tenantId)
 			.setUsageEventId(usageEventId)
 			.setAmountMinor(amountMinor)
 			.setCurrencyCode(currencyCode)
+			.setBillingPeriodKey(billingPeriodKey)
 			.build());
 	}
 

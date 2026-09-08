@@ -81,11 +81,13 @@ public class UsageIngestionOrchestrator {
 		}
 
 		try {
+			String billingPeriodKey = BillingPeriodKey.fromEpochMs(request.getOccurredAtEpochMs());
 			CreateInvoiceResponse invoice = invoicingGateway.createInvoice(
 				request.getTenantId(),
 				event.getUsageEventId(),
 				ratedUsage.getTotalAmountMinor(),
-				ratedUsage.getCurrencyCode()
+				ratedUsage.getCurrencyCode(),
+				billingPeriodKey
 			);
 			event.markAccepted(ratedUsage.getTotalAmountMinor(), invoice.getInvoiceId());
 		}

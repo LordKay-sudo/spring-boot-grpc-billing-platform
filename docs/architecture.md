@@ -25,7 +25,7 @@ Rating and invoicing failures are handled independently. Ingestion remains avail
 ## Known simplifications
 
 - Rating uses hard-coded meter prices in memory
-- Invoicing creates a draft invoice per usage event rather than aggregating by billing period
+- Invoicing aggregates rated usage into monthly draft invoices keyed by `(tenant_id, billing_period_key, currency_code)`
 - No message bus or async worker yet
 - TLS configuration keys exist but local dev runs plaintext
 

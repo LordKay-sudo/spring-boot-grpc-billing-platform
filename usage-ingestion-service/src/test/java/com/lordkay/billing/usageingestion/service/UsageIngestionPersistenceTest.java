@@ -14,16 +14,12 @@ import com.lordkay.billing.usageingestion.grpc.InvoicingGateway;
 import com.lordkay.billing.usageingestion.grpc.RatingGateway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-@DataJpaTest
+@SpringBootTest
 @ActiveProfiles("test")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(UsageIngestionOrchestrator.class)
 class UsageIngestionPersistenceTest {
 
 	@Autowired
@@ -49,12 +45,13 @@ class UsageIngestionPersistenceTest {
 			.setCurrencyCode("USD")
 			.setStatus("RATED")
 			.build());
-		when(invoicingGateway.createInvoice(anyString(), anyString(), anyLong(), anyString())).thenReturn(CreateInvoiceResponse.newBuilder()
+		when(invoicingGateway.createInvoice(anyString(), anyString(), anyLong(), anyString(), anyString())).thenReturn(CreateInvoiceResponse.newBuilder()
 			.setInvoiceId("inv-123")
 			.setTenantId("tenant-1")
 			.setTotalMinor(126)
 			.setCurrencyCode("USD")
 			.setStatus("DRAFT")
+			.setBillingPeriodKey("2024-05")
 			.build());
 
 		UsageEventRequest request = UsageEventRequest.newBuilder()

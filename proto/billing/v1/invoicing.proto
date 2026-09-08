@@ -15,6 +15,7 @@ message CreateInvoiceRequest {
   string usage_event_id = 2;
   int64 amount_minor = 3;
   string currency_code = 4;
+  string billing_period_key = 5;
 }
 
 message CreateInvoiceResponse {
@@ -23,4 +24,5 @@ message CreateInvoiceResponse {
   int64 total_minor = 3;
   string currency_code = 4;
   string status = 5;
+  string billing_period_key = 6;
 }

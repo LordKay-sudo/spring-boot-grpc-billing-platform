@@ -9,6 +9,7 @@ This repo demonstrates contract-first microservice design, protobuf governance i
 - Three gRPC services: `usage-ingestion-service`, `rating-service`, `invoicing-service`
 - Shared protobuf contracts under `proto/` with Buf lint + breaking checks in CI
 - Usage ingestion persists events to PostgreSQL and enforces `(tenant_id, idempotency_key)` uniqueness
+- Invoicing aggregates rated usage into monthly period invoices per tenant and currency
 - Duplicate requests return the stored result without re-rating or re-invoicing
 - Input validation returns gRPC `INVALID_ARGUMENT` for bad requests
 - Downstream gRPC calls use deadlines; rating and invoicing failures degrade independently
@@ -16,7 +17,6 @@ This repo demonstrates contract-first microservice design, protobuf governance i
 
 ## What is intentionally out of scope
 
-- Period-based invoice aggregation (invoicing still creates a draft per event for demo purposes)
 - Async processing / message queues
 - mTLS, JWT, and production-grade auth
 - Grafana dashboards and full OpenTelemetry export wiring
@@ -32,7 +32,7 @@ Client --gRPC--> usage-ingestion-service --gRPC--> rating-service
                               +--PostgreSQL (usage_events)
 ```
 
-Happy path: validate → persist usage → rate → invoice → update stored result.
+Happy path: validate → persist usage → rate → apply to period invoice → update stored result.
 
 Duplicate path: lookup by idempotency key → return stored response.
 
@@ -80,6 +80,8 @@ Ports:
 
 Send the same request twice with the same `idempotencyKey` and you should get the same `usageEventId` back.
 
+Send two different usage events in the same UTC month and invoicing should return the same `invoiceId` with an increasing `totalMinor`.
+
 ## Development
 
 Generate protobuf stubs:
@@ -101,17 +103,16 @@ cd usage-ingestion-service
 - `proto/` — shared protobuf contracts and Buf config
 - `usage-ingestion-service/` — ingestion API, persistence, orchestration
 - `rating-service/` — stub rating logic
-- `invoicing-service/` — stub invoice creation
+- `invoicing-service/` — period invoice aggregation with PostgreSQL
 - `infra/` — local PostgreSQL via Docker Compose
 - `docs/` — architecture, security/observability notes, runbook
 - `scripts/smoke/` — grpcurl smoke scripts
 
 ## Next steps toward production
 
-1. Aggregate rated usage into billing-period invoices instead of per-event drafts
-2. Process rating/invoicing asynchronously after durable intake
-3. Add Testcontainers-backed integration tests in CI
-4. Consolidate Gradle modules and shared proto generation
-5. Wire TLS/mTLS and service auth for internal calls
+1. Process rating/invoicing asynchronously after durable intake
+2. Add Testcontainers-backed integration tests in CI
+3. Consolidate Gradle modules and shared proto generation
+4. Wire TLS/mTLS and service auth for internal calls
 
 See `PROJECT_PLAN.md` for the longer roadmap.

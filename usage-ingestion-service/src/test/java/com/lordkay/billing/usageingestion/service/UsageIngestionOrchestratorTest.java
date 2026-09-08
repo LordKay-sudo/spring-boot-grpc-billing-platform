@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -56,7 +57,7 @@ class UsageIngestionOrchestratorTest {
 		assertThat(response.getStatus()).isEqualTo("ACCEPTED");
 		assertThat(response.getMessage()).contains("Duplicate idempotency key");
 		verify(ratingGateway, never()).rateUsage(anyString(), anyString(), anyString(), anyLong());
-		verify(invoicingGateway, never()).createInvoice(anyString(), anyString(), anyLong(), anyString());
+		verify(invoicingGateway, never()).createInvoice(anyString(), anyString(), anyLong(), anyString(), anyString());
 	}
 
 	@Test
@@ -73,12 +74,13 @@ class UsageIngestionOrchestratorTest {
 			.setCurrencyCode("USD")
 			.setStatus("RATED")
 			.build());
-		when(invoicingGateway.createInvoice("tenant-1", anyString(), 126L, "USD")).thenReturn(CreateInvoiceResponse.newBuilder()
+		when(invoicingGateway.createInvoice(eq("tenant-1"), anyString(), eq(126L), eq("USD"), eq("2024-05"))).thenReturn(CreateInvoiceResponse.newBuilder()
 			.setInvoiceId("inv-123")
 			.setTenantId("tenant-1")
 			.setTotalMinor(126)
 			.setCurrencyCode("USD")
 			.setStatus("DRAFT")
+			.setBillingPeriodKey("2024-05")
 			.build());
 
 		UsageEventResponse response = orchestrator.ingest(validRequest());
@@ -87,9 +89,10 @@ class UsageIngestionOrchestratorTest {
 		assertThat(response.getRatedAmountMinor()).isEqualTo(126);
 		assertThat(response.getInvoiceId()).isEqualTo("inv-123");
 
+		verify(usageEventRepository).saveAndFlush(any(UsageEvent.class));
 		ArgumentCaptor<UsageEvent> savedEvent = ArgumentCaptor.forClass(UsageEvent.class);
-		verify(usageEventRepository, times(2)).save(savedEvent.capture());
-		assertThat(savedEvent.getAllValues().getLast().getStatus()).isEqualTo("ACCEPTED");
+		verify(usageEventRepository).save(savedEvent.capture());
+		assertThat(savedEvent.getValue().getStatus()).isEqualTo("ACCEPTED");
 	}
 
 	@Test
@@ -105,7 +108,7 @@ class UsageIngestionOrchestratorTest {
 		assertThat(response.getStatus()).isEqualTo("ACCEPTED_WITH_DEGRADATION");
 		assertThat(response.getRatedAmountMinor()).isZero();
 		assertThat(response.getInvoiceId()).isEmpty();
-		verify(invoicingGateway, never()).createInvoice(anyString(), anyString(), anyLong(), anyString());
+		verify(invoicingGateway, never()).createInvoice(anyString(), anyString(), anyLong(), anyString(), anyString());
 	}
 
 	@Test
@@ -122,7 +125,7 @@ class UsageIngestionOrchestratorTest {
 			.setCurrencyCode("USD")
 			.setStatus("RATED")
 			.build());
-		when(invoicingGateway.createInvoice(anyString(), anyString(), anyLong(), anyString()))
+		when(invoicingGateway.createInvoice(anyString(), anyString(), anyLong(), anyString(), anyString()))
 			.thenThrow(new RuntimeException("invoicing-down"));
 
 		UsageEventResponse response = orchestrator.ingest(validRequest());

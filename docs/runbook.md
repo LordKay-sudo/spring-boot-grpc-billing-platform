@@ -23,6 +23,10 @@
 
 Run the usage smoke script twice without changing `idempotencyKey`. The second response should return the same `usageEventId` and message indicating a duplicate idempotency key.
 
+## Period aggregation check
+
+Run the usage smoke script twice with different `idempotencyKey` values but the same `occurredAtEpochMs` month. Both responses should reference the same `invoiceId`, and the second response should show a higher invoice total in the invoicing service database.
+
 ## Degradation behavior
 
 `usage-ingestion-service` degrades gracefully when rating or invoicing is unavailable:
