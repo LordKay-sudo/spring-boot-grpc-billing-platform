@@ -1,106 +1,100 @@
 package com.lordkay.billing.usageingestion.grpc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import com.lordkay.billing.proto.v1.CreateInvoiceResponse;
-import com.lordkay.billing.proto.v1.RateUsageResponse;
 import com.lordkay.billing.proto.v1.UsageEventRequest;
 import com.lordkay.billing.proto.v1.UsageEventResponse;
+import com.lordkay.billing.usageingestion.service.UsageIngestionOrchestrator;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 class UsageIngestionGrpcServiceTest {
+
+	@Mock
+	private UsageIngestionOrchestrator orchestrator;
+
+	@InjectMocks
+	private UsageIngestionGrpcService service;
 
 	@Test
 	void ingestUsageReturnsAcceptedResponse() {
-		RatingGateway ratingGateway = (usageEventId, tenantId, meterId, quantity) -> RateUsageResponse.newBuilder()
-			.setUsageEventId(usageEventId)
-			.setTenantId(tenantId)
-			.setQuantity(quantity)
-			.setUnitPriceMinor(3)
-			.setTotalAmountMinor(quantity * 3)
-			.setCurrencyCode("USD")
-			.setStatus("RATED")
-			.build();
-		InvoicingGateway invoicingGateway = (tenantId, usageEventId, amountMinor, currencyCode) -> CreateInvoiceResponse.newBuilder()
+		when(orchestrator.ingest(validRequest())).thenReturn(UsageEventResponse.newBuilder()
+			.setUsageEventId("evt-1")
+			.setStatus("ACCEPTED")
+			.setMessage("Usage event accepted for tenant tenant-1")
+			.setRatedAmountMinor(126)
 			.setInvoiceId("inv-123")
-			.setTenantId(tenantId)
-			.setTotalMinor(amountMinor)
-			.setCurrencyCode(currencyCode)
-			.setStatus("DRAFT")
-			.build();
-		UsageIngestionGrpcService service = new UsageIngestionGrpcService(ratingGateway, invoicingGateway, false, false);
+			.build());
 		List<UsageEventResponse> responses = new ArrayList<>();
 
-		service.ingestUsage(UsageEventRequest.newBuilder()
-			.setTenantId("tenant-1")
-			.setMeterId("api-calls")
-			.setIdempotencyKey("key-123")
-			.setQuantity(42)
-			.setOccurredAtEpochMs(1715068800000L)
-			.build(), new StreamObserver<>() {
-				@Override
-				public void onNext(UsageEventResponse value) {
-					responses.add(value);
-				}
-
-				@Override
-				public void onError(Throwable t) {
-					throw new AssertionError("No error expected", t);
-				}
-
-				@Override
-				public void onCompleted() {
-					// no-op
-				}
-			});
+		service.ingestUsage(validRequest(), responseObserver(responses, null));
 
 		assertThat(responses).hasSize(1);
 		assertThat(responses.getFirst().getStatus()).isEqualTo("ACCEPTED");
-		assertThat(responses.getFirst().getUsageEventId()).isNotBlank();
-		assertThat(responses.getFirst().getRatedAmountMinor()).isEqualTo(126);
-		assertThat(responses.getFirst().getInvoiceId()).isEqualTo("inv-123");
+		verify(orchestrator).ingest(validRequest());
 	}
 
 	@Test
-	void ingestUsageFallsBackWhenDownstreamFails() {
-		RatingGateway ratingGateway = (usageEventId, tenantId, meterId, quantity) -> {
-			throw new RuntimeException("rating-down");
-		};
-		InvoicingGateway invoicingGateway = (tenantId, usageEventId, amountMinor, currencyCode) -> CreateInvoiceResponse.newBuilder()
-			.setInvoiceId("should-not-be-called")
-			.build();
-		UsageIngestionGrpcService service = new UsageIngestionGrpcService(ratingGateway, invoicingGateway, false, false);
+	void ingestUsageRejectsInvalidRequest() {
 		List<UsageEventResponse> responses = new ArrayList<>();
+		List<Throwable> errors = new ArrayList<>();
 
 		service.ingestUsage(UsageEventRequest.newBuilder()
+			.setTenantId("")
+			.setMeterId("api-calls")
+			.setIdempotencyKey("key-123")
+			.setQuantity(42)
+			.setOccurredAtEpochMs(1715068800000L)
+			.build(), responseObserver(responses, errors));
+
+		assertThat(responses).isEmpty();
+		assertThat(errors).hasSize(1);
+		assertThat(errors.getFirst()).isInstanceOf(StatusRuntimeException.class);
+		assertThat(((StatusRuntimeException) errors.getFirst()).getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
+	}
+
+	private UsageEventRequest validRequest() {
+		return UsageEventRequest.newBuilder()
 			.setTenantId("tenant-1")
 			.setMeterId("api-calls")
 			.setIdempotencyKey("key-123")
 			.setQuantity(42)
 			.setOccurredAtEpochMs(1715068800000L)
-			.build(), new StreamObserver<>() {
-				@Override
-				public void onNext(UsageEventResponse value) {
-					responses.add(value);
-				}
+			.build();
+	}
 
-				@Override
-				public void onError(Throwable t) {
+	private StreamObserver<UsageEventResponse> responseObserver(List<UsageEventResponse> responses, List<Throwable> errors) {
+		return new StreamObserver<>() {
+			@Override
+			public void onNext(UsageEventResponse value) {
+				responses.add(value);
+			}
+
+			@Override
+			public void onError(Throwable t) {
+				if (errors != null) {
+					errors.add(t);
+				}
+				else {
 					throw new AssertionError("No error expected", t);
 				}
+			}
 
-				@Override
-				public void onCompleted() {
-					// no-op
-				}
-			});
-
-		assertThat(responses).hasSize(1);
-		assertThat(responses.getFirst().getStatus()).isEqualTo("ACCEPTED_WITH_DEGRADATION");
-		assertThat(responses.getFirst().getRatedAmountMinor()).isZero();
-		assertThat(responses.getFirst().getInvoiceId()).isEmpty();
+			@Override
+			public void onCompleted() {
+				// no-op
+			}
+		};
 	}
 }

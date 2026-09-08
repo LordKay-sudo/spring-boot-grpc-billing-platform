@@ -1,65 +1,117 @@
 # spring-boot-grpc-billing-platform
 
-Multi-tenant billing platform built with Spring Boot 4, gRPC, and Protobuf.
+Multi-tenant billing platform lab built with **Spring Boot 4**, **gRPC**, and **Protobuf**.
 
-## Milestone 1 Scope
-- mono-repo skeleton (`proto`, `services`, `docs`, `infra`)
-- v1 protobuf contract for usage ingestion
-- Spring Boot 4 gRPC ingestion service
-- local run instructions and smoke test command
+This repo demonstrates contract-first microservice design, protobuf governance in CI, and a realistic usage-ingestion path with **persistence and idempotency**. Rating and invoicing are intentionally simplified stubs to keep the focus on gRPC orchestration and operational patterns.
 
-## Milestone 2 Scope
-- `rating-service` and `invoicing-service` gRPC services
-- inter-service flow from ingestion -> rating -> invoicing
-- expanded protobuf contracts for rating and invoice creation
-- service-level unit tests for core RPC methods
+## What works today
 
-## Milestone 3 Scope
-- TLS-ready gRPC server and client configuration knobs
-- Prometheus + tracing dependencies and correlated log pattern
-- protobuf contract governance checks in CI with Buf
-- security and observability baseline documentation (`docs/security-observability.md`)
+- Three gRPC services: `usage-ingestion-service`, `rating-service`, `invoicing-service`
+- Shared protobuf contracts under `proto/` with Buf lint + breaking checks in CI
+- Usage ingestion persists events to PostgreSQL and enforces `(tenant_id, idempotency_key)` uniqueness
+- Duplicate requests return the stored result without re-rating or re-invoicing
+- Input validation returns gRPC `INVALID_ARGUMENT` for bad requests
+- Downstream gRPC calls use deadlines; rating and invoicing failures degrade independently
+- Smoke scripts and an ops runbook for local demos
 
-## Milestone 4 Scope
-- resilience with gRPC deadlines and graceful degradation in ingestion flow
-- failure-focused tests for downstream dependency outages
-- grpcurl smoke scripts for all services under `scripts/smoke`
-- operational runbook and failure simulation guidance (`docs/runbook.md`)
+## What is intentionally out of scope
 
-## Repository Layout
-- `proto/` shared protobuf contracts
-- `usage-ingestion-service/` first runnable service
-- `rating-service/` usage rating RPC service
-- `invoicing-service/` invoice creation RPC service
-- `docs/` architecture and design notes
-- `infra/` local infrastructure definitions
+- Period-based invoice aggregation (invoicing still creates a draft per event for demo purposes)
+- Async processing / message queues
+- mTLS, JWT, and production-grade auth
+- Grafana dashboards and full OpenTelemetry export wiring
+- Multi-module Gradle build (each service is standalone today)
 
-## Prerequisites
-- Java 21+
-- Internet access (Gradle Wrapper downloads Gradle automatically)
+## Architecture
 
-## Run Usage Ingestion Service
+```text
+Client --gRPC--> usage-ingestion-service --gRPC--> rating-service
+                              |
+                              +--gRPC--> invoicing-service
+                              |
+                              +--PostgreSQL (usage_events)
+```
+
+Happy path: validate → persist usage → rate → invoice → update stored result.
+
+Duplicate path: lookup by idempotency key → return stored response.
+
+Degraded path: persist usage first, then tolerate rating or invoicing outages without losing the intake record.
+
+## Quickstart
+
+### 1. Start PostgreSQL
+
 ```powershell
-cd "usage-ingestion-service"
+cd infra
+docker compose up -d
+```
+
+### 2. Start services (separate terminals)
+
+```powershell
+cd rating-service
 .\gradlew bootRun
 ```
 
-Default gRPC port: `9090`
-
-## Generate protobuf code
 ```powershell
-cd "usage-ingestion-service"
+cd invoicing-service
+.\gradlew bootRun
+```
+
+```powershell
+cd usage-ingestion-service
+.\gradlew bootRun
+```
+
+Ports:
+
+| Service | gRPC | HTTP (actuator) |
+|---|---:|---:|
+| usage-ingestion-service | 9090 | 8080 |
+| rating-service | 9091 | 8081 |
+| invoicing-service | 9092 | 8082 |
+
+### 3. Smoke test
+
+```powershell
+.\scripts\smoke\grpcurl-usage.ps1
+```
+
+Send the same request twice with the same `idempotencyKey` and you should get the same `usageEventId` back.
+
+## Development
+
+Generate protobuf stubs:
+
+```powershell
+cd usage-ingestion-service
 .\gradlew generateProto
 ```
 
-## Smoke test with grpcurl
+Run tests:
+
 ```powershell
-grpcurl -plaintext -d "{\"tenantId\":\"tenant-1\",\"meterId\":\"api-calls\",\"idempotencyKey\":\"key-001\",\"quantity\":10,\"occurredAtEpochMs\":1715068800000}" localhost:9090 billing.v1.UsageIngestionService/IngestUsage
+cd usage-ingestion-service
+.\gradlew test
 ```
 
-## Smoke scripts
-```powershell
-.\scripts\smoke\grpcurl-rating.ps1
-.\scripts\smoke\grpcurl-invoicing.ps1
-.\scripts\smoke\grpcurl-usage.ps1
-```
+## Repository layout
+
+- `proto/` — shared protobuf contracts and Buf config
+- `usage-ingestion-service/` — ingestion API, persistence, orchestration
+- `rating-service/` — stub rating logic
+- `invoicing-service/` — stub invoice creation
+- `infra/` — local PostgreSQL via Docker Compose
+- `docs/` — architecture, security/observability notes, runbook
+- `scripts/smoke/` — grpcurl smoke scripts
+
+## Next steps toward production
+
+1. Aggregate rated usage into billing-period invoices instead of per-event drafts
+2. Process rating/invoicing asynchronously after durable intake
+3. Add Testcontainers-backed integration tests in CI
+4. Consolidate Gradle modules and shared proto generation
+5. Wire TLS/mTLS and service auth for internal calls
+
+See `PROJECT_PLAN.md` for the longer roadmap.
