@@ -19,6 +19,18 @@
 - `scripts/smoke/grpcurl-invoicing.ps1`
 - `scripts/smoke/grpcurl-usage.ps1`
 
+## Async rating
+
+By default, `billing.async-rating.enabled=true`. Ingest persists the usage event and returns `QUEUED` without blocking on rating or invoicing.
+
+A scheduled worker polls `PENDING` usage events every 2 seconds and runs rating + invoicing in the background.
+
+To disable async rating for debugging:
+
+```properties
+billing.async-rating.enabled=false
+```
+
 ## Idempotency check
 
 Run the usage smoke script twice without changing `idempotencyKey`. The second response should return the same `usageEventId` and message indicating a duplicate idempotency key.
