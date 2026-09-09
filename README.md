@@ -13,11 +13,12 @@ This repo demonstrates contract-first microservice design, protobuf governance i
 - Duplicate requests return the stored result without re-rating or re-invoicing
 - Input validation returns gRPC `INVALID_ARGUMENT` for bad requests
 - Downstream gRPC calls use deadlines; rating and invoicing failures degrade independently
+- Async rating via a scheduled worker: ingest returns `QUEUED` immediately, billing runs in the background
 - Smoke scripts and an ops runbook for local demos
 
 ## What is intentionally out of scope
 
-- Async processing / message queues
+- Message queues (Kafka/RabbitMQ) for billing workflows
 - mTLS, JWT, and production-grade auth
 - Grafana dashboards and full OpenTelemetry export wiring
 - Multi-module Gradle build (each service is standalone today)
@@ -32,9 +33,9 @@ Client --gRPC--> usage-ingestion-service --gRPC--> rating-service
                               +--PostgreSQL (usage_events)
 ```
 
-Happy path: validate → persist usage → rate → apply to period invoice → update stored result.
+Happy path: validate → persist usage → return `QUEUED` → worker rates and applies to period invoice.
 
-Duplicate path: lookup by idempotency key → return stored response.
+Duplicate path: lookup by idempotency key → return stored response (`QUEUED` while still pending).
 
 Degraded path: persist usage first, then tolerate rating or invoicing outages without losing the intake record.
 
@@ -80,7 +81,7 @@ Ports:
 
 Send the same request twice with the same `idempotencyKey` and you should get the same `usageEventId` back.
 
-Send two different usage events in the same UTC month and invoicing should return the same `invoiceId` with an increasing `totalMinor`.
+The first ingest response should be `QUEUED`. After a few seconds, the stored usage event should move to `ACCEPTED` once the async worker completes rating and invoicing.
 
 ## Development
 
@@ -110,9 +111,8 @@ cd usage-ingestion-service
 
 ## Next steps toward production
 
-1. Process rating/invoicing asynchronously after durable intake
-2. Add Testcontainers-backed integration tests in CI
-3. Consolidate Gradle modules and shared proto generation
-4. Wire TLS/mTLS and service auth for internal calls
+1. Add Testcontainers-backed integration tests in CI
+2. Consolidate Gradle modules and shared proto generation
+3. Wire TLS/mTLS and service auth for internal calls
 
 See `PROJECT_PLAN.md` for the longer roadmap.

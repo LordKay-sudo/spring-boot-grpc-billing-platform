@@ -6,7 +6,8 @@
 - Three standalone Spring Boot 4 gRPC services
 - Usage ingestion persists events to PostgreSQL via Flyway-managed schema
 - Idempotency enforced with a unique constraint on `(tenant_id, idempotency_key)`
-- Synchronous orchestration from ingestion → rating → invoicing for demo simplicity
+- Synchronous orchestration from ingestion → rating → invoicing when async rating is disabled
+- Async rating via scheduled worker when `billing.async-rating.enabled=true`
 
 ## Design choices
 
