@@ -111,9 +111,8 @@ cd usage-ingestion-service
 
 ## Next steps toward production
 
-1. Process rating/invoicing asynchronously after durable intake
-2. Add Testcontainers-backed integration tests in CI
-3. Consolidate Gradle modules and shared proto generation
-4. Wire TLS/mTLS and service auth for internal calls
+1. Add Testcontainers-backed integration tests in CI
+2. Consolidate Gradle modules and shared proto generation
+3. Wire TLS/mTLS and service auth for internal calls
 
 See `PROJECT_PLAN.md` for the longer roadmap.
